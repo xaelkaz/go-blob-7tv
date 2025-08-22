@@ -195,6 +195,244 @@ curl http://localhost:8000/api/cache/status
 curl -X POST "http://localhost:8000/api/cache/clear?cache_type=search"
 ```
 
+## 🏗️ Arquitectura
+
+### Diagrama de Arquitectura General
+
+```mermaid
+graph TB
+    %% External Services
+    Client[Client Applications]
+    SevenTV[7TV API<br/>api.7tv.app]
+    Azure[Azure Blob Storage<br/>emotes container]
+    
+    %% Load Balancer / Reverse Proxy (optional)
+    LB[Load Balancer<br/>nginx/cloudflare]
+    
+    %% Main Application
+    subgraph "Gokeki Application"
+        direction TB
+        
+        %% Web Layer
+        Gin[Gin Web Framework<br/>:8000]
+        
+        %% Route Handlers
+        subgraph "Route Handlers"
+            RouteMain[Main Routes<br/>/health, /]
+            RouteAPI[Search Routes<br/>/api/search-emotes]
+            RouteTrend[Trending Routes<br/>/api/trending/emotes]
+            RouteStorage[Storage Routes<br/>/api/storage/*]
+            RouteCache[Cache Routes<br/>/api/cache/*]
+        end
+        
+        %% Services Layer
+        subgraph "Services Layer"
+            ServiceSTV[7TV Service<br/>API Integration]
+            ServiceCache[Cache Service<br/>Redis Operations]
+            ServiceStorage[Storage Service<br/>Azure Operations]
+        end
+        
+        %% Middleware
+        subgraph "Middleware"
+            RateLimit[Rate Limiter<br/>ulule/limiter]
+            ProcessTime[Process Time<br/>Header Injection]
+            CORS[CORS Handler]
+        end
+        
+        %% Configuration
+        Config[Configuration<br/>Environment Variables]
+    end
+    
+    %% External Dependencies
+    Redis[(Redis Cache<br/>Port 6379)]
+    
+    %% Data Flow
+    Client -->|HTTP Requests| LB
+    LB -->|Proxy| Gin
+    
+    Gin --> RateLimit
+    RateLimit --> ProcessTime
+    ProcessTime --> CORS
+    CORS --> RouteMain
+    CORS --> RouteAPI
+    CORS --> RouteTrend
+    CORS --> RouteStorage
+    CORS --> RouteCache
+    
+    RouteAPI --> ServiceSTV
+    RouteTrend --> ServiceSTV
+    RouteStorage --> ServiceStorage
+    RouteCache --> ServiceCache
+    
+    ServiceSTV -->|HTTP| SevenTV
+    ServiceStorage -->|SDK| Azure
+    ServiceCache -->|TCP| Redis
+    
+    ServiceSTV --> ServiceStorage
+    ServiceSTV --> ServiceCache
+    
+    Config --> ServiceSTV
+    Config --> ServiceCache
+    Config --> ServiceStorage
+    
+    %% Styling
+    classDef external fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef app fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef service fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef storage fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef middleware fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    
+    class Client,SevenTV,Azure external
+    class Gin,RouteMain,RouteAPI,RouteTrend,RouteStorage,RouteCache app
+    class ServiceSTV,ServiceCache,ServiceStorage,Config service
+    class Redis storage
+    class RateLimit,ProcessTime,CORS middleware
+```
+
+### Flujo de Datos y Operaciones
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant G as Gokeki API
+    participant RL as Rate Limiter
+    participant Cache as Redis Cache
+    participant STV as 7TV API
+    participant Azure as Azure Storage
+    
+    Note over C,Azure: Emote Search Flow
+    
+    C->>G: POST /api/search-emotes
+    G->>RL: Check rate limit
+    RL-->>G: Allow/Deny
+    
+    alt Rate limit exceeded
+        G-->>C: 429 Too Many Requests
+    else Request allowed
+        G->>Cache: Check cache key
+        
+        alt Cache hit
+            Cache-->>G: Return cached data
+            G-->>C: 200 + Cached results
+        else Cache miss
+            Cache-->>G: No data found
+            G->>STV: GraphQL query
+            STV-->>G: Emote data
+            
+            alt Storage enabled
+                G->>Azure: Process and upload emotes
+                Azure-->>G: Storage URLs
+            end
+            
+            G->>Cache: Store results with TTL
+            Cache-->>G: Stored
+            G-->>C: 200 + Fresh results
+        end
+    end
+    
+    Note over C,Azure: Cache Management Flow
+    
+    C->>G: POST /api/cache/clear
+    G->>Cache: Clear specified patterns
+    Cache-->>G: Cache cleared
+    G-->>C: 200 + Clear confirmation
+```
+
+### Stack Tecnológico
+
+```mermaid
+graph LR
+    subgraph "Technology Stack"
+        subgraph "Backend Framework"
+            Go[Go 1.21+]
+            Gin[Gin Web Framework]
+        end
+        
+        subgraph "External APIs"
+            STV[7TV GraphQL API<br/>Search & Trending]
+        end
+        
+        subgraph "Caching Layer"
+            Redis[Redis 7<br/>Key-Value Store]
+            RedisOps[Cache Operations<br/>• Search results<br/>• Trending data<br/>• TTL management]
+        end
+        
+        subgraph "Cloud Storage"
+            Azure[Azure Blob Storage<br/>Container: emotes]
+            AzureOps[Storage Operations<br/>• Emote upload<br/>• Blob listing<br/>• URL generation]
+        end
+        
+        subgraph "Security & Performance"
+            RateLimit[Rate Limiting<br/>ulule/limiter/v3]
+            Metrics[Process Time Tracking]
+            Health[Health Checks]
+        end
+        
+        subgraph "Infrastructure"
+            Docker[Docker Containers]
+            DockerCompose[Docker Compose<br/>Multi-service orchestration]
+            Make[Makefile<br/>Build automation]
+        end
+        
+        subgraph "Configuration"
+            EnvVars[Environment Variables<br/>• Redis config<br/>• Azure credentials<br/>• Cache TTL<br/>• API settings]
+        end
+    end
+    
+    %% Connections
+    Go --> Gin
+    Gin --> RateLimit
+    Gin --> STV
+    Gin --> Redis
+    Gin --> Azure
+    
+    Redis --> RedisOps
+    Azure --> AzureOps
+    
+    Gin --> Metrics
+    Gin --> Health
+    
+    Docker --> DockerCompose
+    Make --> Docker
+    
+    EnvVars --> Go
+    EnvVars --> Redis
+    EnvVars --> Azure
+    
+    %% Styling
+    classDef tech fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef storage fill:#fff8e1,stroke:#f57c00,stroke-width:2px
+    classDef security fill:#e8f5e8,stroke:#388e3c,stroke-width:2px
+    classDef infra fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    classDef config fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    
+    class Go,Gin,STV tech
+    class Redis,RedisOps,Azure,AzureOps storage
+    class RateLimit,Metrics,Health security
+    class Docker,DockerCompose,Make infra
+    class EnvVars config
+```
+
+### Características Arquitectónicas
+
+#### **Patrones de Diseño Implementados**
+- **Layered Architecture**: Separación clara entre capas web, servicios y datos
+- **Repository Pattern**: Abstracción de operaciones de storage y cache
+- **Middleware Pattern**: Cross-cutting concerns como rate limiting y métricas
+- **Service Pattern**: Servicios especializados para cada responsabilidad
+
+#### **Principios de Escalabilidad**
+- **Stateless Design**: Permite escalado horizontal
+- **Cache Distribuido**: Redis para alta performance
+- **Desacoplamiento**: Servicios independientes y intercambiables
+- **Configuración Externa**: Variables de entorno para flexibilidad
+
+#### **Características de Resiliencia**
+- **Health Checks**: Monitoreo continuo del estado del sistema
+- **Rate Limiting**: Protección contra sobrecarga
+- **Graceful Error Handling**: Manejo elegante de fallos
+- **Circuit Breaker Pattern**: Protección de servicios externos (implícito)
+
 ## 🔧 Desarrollo
 
 ### Hot reload con Air
