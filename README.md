@@ -1,166 +1,166 @@
 # Gokeki - 7TV Emote API
 
-Una API REST desarrollada en Go para buscar, gestionar y almacenar emotes de 7TV con sistema de caché Redis y almacenamiento en Azure Blob Storage.
+A REST API developed in Go for searching, managing and storing 7TV emotes with Redis caching system and Azure Blob Storage integration.
 
-## 🚀 Características
+## 🚀 Features
 
-- **Búsqueda de emotes**: Busca emotes en la API de 7TV con filtros personalizables
-- **Emotes trending**: Obtén los emotes más populares por período (diario, semanal, mensual, all-time)
-- **Sistema de caché**: Redis para respuestas rápidas y reducir carga en APIs externas
-- **Almacenamiento en la nube**: Sube y gestiona emotes en Azure Blob Storage
-- **Rate limiting**: Protección contra abuso con límites por endpoint
-- **Health checks**: Monitoreo del estado de la aplicación y Redis
-- **Hot reload**: Desarrollo con recarga automática
+- **Emote search**: Search emotes on 7TV API with customizable filters
+- **Trending emotes**: Get the most popular emotes by period (daily, weekly, monthly, all-time)
+- **Cache system**: Redis for fast responses and reduced load on external APIs
+- **Cloud storage**: Upload and manage emotes on Azure Blob Storage
+- **Rate limiting**: Protection against abuse with limits per endpoint
+- **Health checks**: Application and Redis status monitoring
+- **Hot reload**: Development with automatic reload
 
-## 📋 Prerequisitos
+## 📋 Prerequisites
 
-- Go 1.21 o superior
-- Redis (instalable con Homebrew en Mac o Docker)
-- Azure Storage Account (opcional)
+- Go 1.21 or higher
+- Redis (installable with Homebrew on Mac or Docker)
+- Azure Storage Account (optional)
 
-## 🛠️ Instalación
+## 🛠️ Installation
 
-### Opción 1: Instalación nativa (macOS con Homebrew)
+### Option 1: Native installation (macOS with Homebrew)
 
 ```bash
-# Clonar el repositorio
-git clone <tu-repo-url>
+# Clone the repository
+git clone <your-repo-url>
 cd gokeki
 
-# Instalar Redis
+# Install Redis
 brew install redis
 brew services start redis
 
-# Instalar dependencias de Go
+# Install Go dependencies
 go mod download
 go mod tidy
 
-# Configurar variables de entorno (opcional)
+# Configure environment variables (optional)
 cp env.example .env
-# Editar .env con tus configuraciones
+# Edit .env with your configurations
 
-# Ejecutar la aplicación
+# Run the application
 make run
-# o directamente
+# or directly
 go run main.go
 ```
 
-### Opción 2: Con Docker
+### Option 2: With Docker
 
 ```bash
-# Clonar el repositorio
-git clone <tu-repo-url>
+# Clone the repository
+git clone <your-repo-url>
 cd gokeki
 
-# Levantar Redis
+# Start Redis
 docker-compose up -d redis
 
-# Construir y ejecutar la aplicación
+# Build and run the application
 docker build -t gokeki .
 docker run -p 8000:8000 --env-file .env gokeki
 ```
 
-### Opción 3: Setup completo con Make
+### Option 3: Complete setup with Make
 
 ```bash
-# Setup automático (instala dependencias y levanta Redis)
+# Automatic setup (install dependencies and start Redis)
 make setup
 
-# Ejecutar aplicación
+# Run application
 make run
 ```
 
-## ⚙️ Configuración
+## ⚙️ Configuration
 
-### Variables de entorno requeridas
+### Required environment variables
 
 ```bash
-# Puerto del servidor (default: 8000)
+# Server port (default: 8000)
 PORT=8000
 
-# Redis (obligatorio)
+# Redis (required)
 REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_DB=0
 REDIS_PASSWORD=
 
-# Cache TTL en segundos
-CACHE_TTL=3600          # 1 hora para búsquedas
-TRENDING_CACHE_TTL=900  # 15 minutos para trending
+# Cache TTL in seconds
+CACHE_TTL=3600          # 1 hour for searches
+TRENDING_CACHE_TTL=900  # 15 minutes for trending
 
-# Azure Storage (obligatorio para funcionalidad completa)
-AZURE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=tuaccount;AccountKey=tukey;EndpointSuffix=core.windows.net
+# Azure Storage (required for full functionality)
+AZURE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=youraccount;AccountKey=yourkey;EndpointSuffix=core.windows.net
 CONTAINER_NAME=emotes
 
-# Configuración de la API
+# API configuration
 API_TITLE=7TV Emote API
 API_DESCRIPTION=API for fetching and storing 7TV emotes
 API_VERSION=1.0.0
 ```
 
-### Configuración de Azure Storage
+### Azure Storage configuration
 
-Para funcionalidad completa con almacenamiento de emotes:
+For full functionality with emote storage:
 
-1. Crea una cuenta de Azure Storage
-2. Crea un contenedor llamado `emotes` (o configura `CONTAINER_NAME`)
-3. Obtén la connection string desde Azure Portal
-4. Configura `AZURE_CONNECTION_STRING` en tu `.env`
+1. Create an Azure Storage account
+2. Create a container named `emotes` (or configure `CONTAINER_NAME`)
+3. Get the connection string from Azure Portal
+4. Configure `AZURE_CONNECTION_STRING` in your `.env`
 
-## 🏃‍♂️ Uso
+## 🏃‍♂️ Usage
 
-### Comandos Make disponibles
+### Available Make commands
 
 ```bash
-make help          # Ver todos los comandos disponibles
-make setup         # Setup completo (instalar deps + levantar Redis)
-make run           # Ejecutar la aplicación
-make dev           # Modo desarrollo (requiere air)
-make build         # Compilar aplicación
-make test          # Ejecutar tests
-make docker-up     # Levantar Redis con Docker
-make docker-down   # Detener Redis
-make check-redis   # Verificar conexión a Redis
-make clean         # Limpiar archivos compilados
-make fmt           # Formatear código
-make vet           # Verificar código con go vet
+make help          # See all available commands
+make setup         # Complete setup (install deps + start Redis)
+make run           # Run the application
+make dev           # Development mode (requires air)
+make build         # Compile application
+make test          # Run tests
+make docker-up     # Start Redis with Docker
+make docker-down   # Stop Redis
+make check-redis   # Verify Redis connection
+make clean         # Clean compiled files
+make fmt           # Format code
+make vet           # Verify code with go vet
 ```
 
 ## 📖 API Endpoints
 
-La API estará disponible en `http://localhost:8000`
+The API will be available at `http://localhost:8000`
 
-### Información general
+### General information
 
-| Endpoint | Método | Descripción |
+| Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/` | GET | Información de la API y endpoints disponibles |
-| `/health` | GET | Health check de la aplicación |
+| `/` | GET | API information and available endpoints |
+| `/health` | GET | Application health check |
 
-### Búsqueda y trending
+### Search and trending
 
-| Endpoint | Método | Descripción |
+| Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/search-emotes` | POST | Buscar emotes por query |
-| `/api/trending/emotes` | GET | Obtener emotes trending |
+| `/api/search-emotes` | POST | Search emotes by query |
+| `/api/trending/emotes` | GET | Get trending emotes |
 
-### Almacenamiento
+### Storage
 
-| Endpoint | Método | Descripción |
+| Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/storage/trending-emotes` | GET | Emotes trending desde Azure Storage |
-| `/api/storage/emote-api` | GET | Emotes desde Azure Storage |
+| `/api/storage/trending-emotes` | GET | Trending emotes from Azure Storage |
+| `/api/storage/emote-api` | GET | Emotes from Azure Storage |
 
-### Cache y administración
+### Cache and administration
 
-| Endpoint | Método | Descripción |
+| Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/cache/status` | GET | Estado del sistema de caché |
-| `/api/cache/clear` | POST | Limpiar caché |
+| `/api/cache/status` | GET | Cache system status |
+| `/api/cache/clear` | POST | Clear cache |
 
-### Ejemplos de uso
+### Usage examples
 
-#### Buscar emotes
+#### Search emotes
 ```bash
 curl -X POST http://localhost:8000/api/search-emotes \
   -H "Content-Type: application/json" \
@@ -171,33 +171,33 @@ curl -X POST http://localhost:8000/api/search-emotes \
   }'
 ```
 
-#### Obtener emotes trending
+#### Get trending emotes
 ```bash
-# Trending semanal (default)
+# Weekly trending (default)
 curl "http://localhost:8000/api/trending/emotes?limit=20"
 
-# Trending mensual
+# Monthly trending
 curl "http://localhost:8000/api/trending/emotes?period=trending_monthly&limit=20"
 
-# Solo emotes animados
+# Animated emotes only
 curl "http://localhost:8000/api/trending/emotes?animated_only=true"
 ```
 
-#### Estado del sistema
+#### System status
 ```bash
 # Health check
 curl http://localhost:8000/health
 
-# Estado del caché
+# Cache status
 curl http://localhost:8000/api/cache/status
 
-# Limpiar caché específico
+# Clear specific cache
 curl -X POST "http://localhost:8000/api/cache/clear?cache_type=search"
 ```
 
-## 🏗️ Arquitectura
+## 🏗️ Architecture
 
-### Diagrama de Arquitectura General
+### General Architecture Diagram
 
 ```mermaid
 graph TB
@@ -289,7 +289,7 @@ graph TB
     class RateLimit,ProcessTime,CORS middleware
 ```
 
-### Flujo de Datos y Operaciones
+### Data Flow and Operations
 
 ```mermaid
 sequenceDiagram
@@ -338,7 +338,7 @@ sequenceDiagram
     G-->>C: 200 + Clear confirmation
 ```
 
-### Stack Tecnológico
+### Technology Stack
 
 ```mermaid
 graph LR
@@ -413,64 +413,64 @@ graph LR
     class EnvVars config
 ```
 
-### Características Arquitectónicas
+### Architectural Characteristics
 
-#### **Patrones de Diseño Implementados**
-- **Layered Architecture**: Separación clara entre capas web, servicios y datos
-- **Repository Pattern**: Abstracción de operaciones de storage y cache
-- **Middleware Pattern**: Cross-cutting concerns como rate limiting y métricas
-- **Service Pattern**: Servicios especializados para cada responsabilidad
+#### **Implemented Design Patterns**
+- **Layered Architecture**: Clear separation between web, services, and data layers
+- **Repository Pattern**: Abstraction of storage and cache operations
+- **Middleware Pattern**: Cross-cutting concerns like rate limiting and metrics
+- **Service Pattern**: Specialized services for each responsibility
 
-#### **Principios de Escalabilidad**
-- **Stateless Design**: Permite escalado horizontal
-- **Cache Distribuido**: Redis para alta performance
-- **Desacoplamiento**: Servicios independientes y intercambiables
-- **Configuración Externa**: Variables de entorno para flexibilidad
+#### **Scalability Principles**
+- **Stateless Design**: Enables horizontal scaling
+- **Distributed Cache**: Redis for high performance
+- **Decoupling**: Independent and interchangeable services
+- **External Configuration**: Environment variables for flexibility
 
-#### **Características de Resiliencia**
-- **Health Checks**: Monitoreo continuo del estado del sistema
-- **Rate Limiting**: Protección contra sobrecarga
-- **Graceful Error Handling**: Manejo elegante de fallos
-- **Circuit Breaker Pattern**: Protección de servicios externos (implícito)
+#### **Resilience Features**
+- **Health Checks**: Continuous system status monitoring
+- **Rate Limiting**: Protection against overload
+- **Graceful Error Handling**: Elegant failure management
+- **Circuit Breaker Pattern**: External service protection (implicit)
 
-## 🔧 Desarrollo
+## 🔧 Development
 
-### Hot reload con Air
+### Hot reload with Air
 
-Para desarrollo con recarga automática:
+For development with automatic reload:
 
 ```bash
-# Instalar air
+# Install air
 go install github.com/cosmtrek/air@latest
 
-# Ejecutar en modo desarrollo
+# Run in development mode
 make dev
-# o directamente
+# or directly
 air
 ```
 
-### Estructura del proyecto
+### Project structure
 
 ```
 gokeki/
-├── main.go              # Punto de entrada
-├── config/              # Configuración
-├── models/              # Estructuras de datos
-├── routes/              # Handlers de rutas
-├── services/            # Lógica de negocio
-│   ├── cache/          # Gestión de Redis
-│   ├── seventv/        # Integración con 7TV API
-│   └── storage/        # Gestión de Azure Storage
+├── main.go              # Entry point
+├── config/              # Configuration
+├── models/              # Data structures
+├── routes/              # Route handlers
+├── services/            # Business logic
+│   ├── cache/          # Redis management
+│   ├── seventv/        # 7TV API integration
+│   └── storage/        # Azure Storage management
 ├── docker-compose.yml   # Redis setup
-├── Dockerfile          # Containerización
-├── Makefile            # Comandos automatizados
-├── .gitignore          # Archivos ignorados
-└── README.md           # Esta documentación
+├── Dockerfile          # Containerization
+├── Makefile            # Automated commands
+├── .gitignore          # Ignored files
+└── README.md           # This documentation
 ```
 
 ## 📊 Rate Limits
 
-| Endpoint | Límite |
+| Endpoint | Limit |
 |----------|--------|
 | Search emotes | 100 req/15min |
 | Trending emotes | 100 req/15min |
@@ -480,56 +480,56 @@ gokeki/
 
 ## 🐳 Docker
 
-### Desarrollo local con Docker
+### Local development with Docker
 
 ```bash
-# Construir imagen
+# Build image
 docker build -t gokeki .
 
-# Ejecutar con Redis
+# Run with Redis
 docker-compose up -d redis
 docker run -p 8000:8000 --env-file .env --network gokeki_default gokeki
 ```
 
-### Docker Compose completo
+### Complete Docker Compose
 
 ```bash
-# Levantar toda la stack (Redis + App)
+# Start entire stack (Redis + App)
 docker-compose up -d
 ```
 
 ## 🐛 Troubleshooting
 
-### Redis no se conecta
+### Redis connection issues
 ```bash
-# Verificar que Redis esté corriendo
+# Verify Redis is running
 make check-redis
 
-# Si no está corriendo (Homebrew)
+# If not running (Homebrew)
 brew services start redis
 
-# Si usas Docker
+# If using Docker
 make docker-up
 ```
 
-### Error de dependencias
+### Dependency errors
 ```bash
-# Limpiar y reinstalar
+# Clean and reinstall
 go clean -modcache
 go mod download
 go mod tidy
 ```
 
-### Azure Storage no disponible
+### Azure Storage unavailable
 ```bash
-# La aplicación funcionará sin Azure Storage
-# Solo las funciones de storage/upload estarán deshabilitadas
-# Verifica la connection string en las variables de entorno
+# The application will work without Azure Storage
+# Only storage/upload functions will be disabled
+# Check connection string in environment variables
 ```
 
-### Puertos en uso
+### Port conflicts
 ```bash
-# Cambiar el puerto
+# Change port
 export PORT=8080
 go run main.go
 ```
@@ -537,51 +537,58 @@ go run main.go
 ## 🧪 Testing
 
 ```bash
-# Ejecutar todos los tests
+# Run all tests
 make test
 
-# Ejecutar tests con verbose
+# Run tests with verbose output
 go test ./... -v
 
-# Tests de integración
+# Integration tests
 go test ./tests/integration/... -v
 ```
 
 ## 📦 Deployment
 
-### Variables de entorno para producción
+### Production environment variables
 
 ```bash
-# Obligatorias
+# Required
 REDIS_HOST=your-redis-host
 REDIS_PORT=6379
 AZURE_CONNECTION_STRING=your-azure-connection-string
 CONTAINER_NAME=your-container-name
 
-# Opcionales
+# Optional
 PORT=8000
 CACHE_TTL=3600
 TRENDING_CACHE_TTL=900
 ```
 
-### Build para producción
+### Production build
 
 ```bash
-# Compilar para Linux
+# Compile for Linux
 GOOS=linux GOARCH=amd64 go build -o bin/gokeki-linux main.go
 
-# Compilar para macOS
+# Compile for macOS
 GOOS=darwin GOARCH=amd64 go build -o bin/gokeki-darwin main.go
 ```
 
-## 🤝 Contribuir
+## 🤝 Contributing
 
-1. Fork del proyecto
-2. Crear rama para feature (`git checkout -b feature/nueva-funcionalidad`)
-3. Commit de cambios (`git commit -am 'Agregar nueva funcionalidad'`)
-4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
-5. Crear Pull Request
+1. Fork the project
+2. Create a feature branch (`git checkout -b feature/new-feature`)
+3. Commit your changes (`git commit -am 'Add new feature'`)
+4. Push to the branch (`git push origin feature/new-feature`)
+5. Create a Pull Request
 
-## 📄 Licencia
+## 📄 License
 
-Este proyecto está bajo la licencia MIT. Ver archivo `LICENSE` para más detalles.
+This project is under the MIT license. See `LICENSE` file for more details.
+
+## 🙏 Acknowledgments
+
+- [7TV](https://7tv.app/) for their emote API
+- [Gin](https://gin-gonic.com/) web framework for Go
+- [Redis](https://redis.io/) for the cache system
+- [Azure](https://azure.microsoft.com/) for cloud storage
