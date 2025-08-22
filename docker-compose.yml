@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: gokeki-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - gokeki-network
+
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - APP_VERSION=${APP_VERSION:-latest}
+        - BUILD_DATE=${BUILD_DATE:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}
+        - VCS_REF=${VCS_REF:-$(git rev-parse --short HEAD)}
+    container_name: gokeki-app
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - REDIS_PASSWORD=
+      - CACHE_TTL=3600
+      - TRENDING_CACHE_TTL=900
+      - PORT=8000
+      # Azure Storage configuration - set these in .env file or override here
+      # - AZURE_CONNECTION_STRING=${AZURE_CONNECTION_STRING}
+      # - CONTAINER_NAME=${CONTAINER_NAME}
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - gokeki-network
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  gokeki-network:
+    driver: bridge
