@@ -347,10 +347,3 @@ GOOS=darwin GOARCH=amd64 go build -o bin/gokeki-darwin main.go
 ## 📄 Licencia
 
 Este proyecto está bajo la licencia MIT. Ver archivo `LICENSE` para más detalles.
-
-## 🙏 Agradecimientos
-
-- [7TV](https://7tv.app/) por su API de emotes
-- [Gin](https://gin-gonic.com/) framework web para Go
-- [Redis](https://redis.io/) para el sistema de caché
-- [Azure](https://azure.microsoft.com/) para el almacenamiento en la nube
