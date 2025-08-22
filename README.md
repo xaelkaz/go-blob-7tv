@@ -585,10 +585,3 @@ GOOS=darwin GOARCH=amd64 go build -o bin/gokeki-darwin main.go
 ## 📄 License
 
 This project is under the MIT license. See `LICENSE` file for more details.
-
-## 🙏 Acknowledgments
-
-- [7TV](https://7tv.app/) for their emote API
-- [Gin](https://gin-gonic.com/) web framework for Go
-- [Redis](https://redis.io/) for the cache system
-- [Azure](https://azure.microsoft.com/) for cloud storage
