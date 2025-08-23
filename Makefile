@@ -61,7 +61,15 @@ docker-logs-app: ## Ver logs de la aplicación
 
 # Docker - Build de la imagen
 docker-build: ## Construir imagen Docker
-	docker build -t gokeki .
+	./scripts/build.sh latest
+
+# Docker - Build optimizado con argumentos
+docker-build-release: ## Construir imagen Docker para release
+	./scripts/build.sh $(VERSION) --push
+
+# Docker - Build multi-platform 
+docker-build-multi: ## Construir imagen Docker multi-platform
+	docker buildx build --platform linux/amd64,linux/arm64 -t gokeki:latest --push .
 
 # Docker - Ejecutar stack completa
 docker-run-full: ## Ejecutar aplicación y Redis con Docker

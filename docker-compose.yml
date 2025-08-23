@@ -19,7 +19,13 @@ services:
       - gokeki-network
 
   app:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - APP_VERSION=${APP_VERSION:-latest}
+        - BUILD_DATE=${BUILD_DATE:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}
+        - VCS_REF=${VCS_REF:-$(git rev-parse --short HEAD)}
     container_name: gokeki-app
     ports:
       - "8000:8000"
@@ -42,13 +48,6 @@ services:
     restart: unless-stopped
     networks:
       - gokeki-network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
 volumes:
   redis_data:
     driver: local

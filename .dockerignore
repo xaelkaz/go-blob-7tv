@@ -1,15 +1,19 @@
-# Git
+# Git files
 .git
 .gitignore
+.gitattributes
 
 # Documentation
 README.md
 *.md
+docs/
 
-# Environment files
+# Development files
 .env
 .env.local
-.env.*.local
+.env.development
+.env.test
+*.log
 
 # IDE and editor files
 .vscode/
@@ -18,40 +22,48 @@ README.md
 *.swo
 *~
 
-# OS generated files
+# macOS
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
 
 # Build artifacts
 bin/
 dist/
 build/
+*.exe
+*.dll
+*.so
+*.dylib
 
 # Test files
 *_test.go
 test/
 tests/
 
-# Development tools
-air.toml
-.air.toml
+# Dependency directories (will be downloaded in container)
+vendor/
 
 # Docker files
-Dockerfile
-.dockerignore
+Dockerfile*
 docker-compose*.yml
+.dockerignore
 
-# Makefile
-Makefile
-
-# Logs
-*.log
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
 
 # Temporary files
 tmp/
 temp/
+*.tmp
+
+# Node.js (if any frontend components)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Coverage reports
+*.out
+coverage.html
