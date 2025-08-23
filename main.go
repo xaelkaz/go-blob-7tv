@@ -14,9 +14,18 @@ import (
 	"gokeki/services/cache"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Load .env file if it exists
+	if err := godotenv.Load(); err != nil {
+		log.Printf("⚠️  Warning: Could not load .env file: %v", err)
+		log.Println("ℹ️  Continuing with system environment variables...")
+	} else {
+		log.Println("✅ .env file loaded successfully")
+	}
+
 	// Load config
 	cfg := config.LoadConfig()
 

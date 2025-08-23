@@ -26,18 +26,27 @@ var (
 func InitAzureStorage() bool {
 	initOnce.Do(func() {
 		cfg := config.LoadConfig()
+
+		if cfg.AzureConnStr == "" {
+			log.Println("⚠️  Azure Storage disabled (no connection string)")
+			return
+		}
+
 		var err error
 		serviceClient, err = azblob.NewClientFromConnectionString(cfg.AzureConnStr, nil)
 		if err != nil {
-			log.Printf("Failed to create Azure client: %v", err)
+			log.Printf("❌ Failed to create Azure client: %v", err)
 			return
 		}
+
 		accountName = getAccountNameFromConnStr(cfg.AzureConnStr)
 		if accountName == "" {
-			log.Println("Failed to parse account name from connection string")
+			log.Println("❌ Failed to parse account name from connection string")
 			return
 		}
+
 		available = true
+		log.Printf("✅ Azure Storage initialized (Account: %s, Container: %s)", accountName, cfg.ContainerName)
 	})
 	return available
 }
@@ -62,17 +71,18 @@ func ContainerURL() string {
 
 func UploadToAzureBlob(fileData []byte, blobName string, contentType string) (string, error) {
 	if !AzureStorageAvailable() {
-		log.Println("Azure Storage not available, skipping upload")
 		return "", nil
 	}
 
 	cfg := config.LoadConfig()
+
 	// Check existence with a head request (download with range 0-0)
 	_, err := serviceClient.DownloadStream(context.Background(), cfg.ContainerName, blobName, &azblob.DownloadStreamOptions{
 		Range: azblob.HTTPRange{Count: 1},
 	})
 	if err == nil {
-		return "https://" + accountName + ".blob.core.windows.net/" + cfg.ContainerName + "/" + blobName, nil // Exists
+		url := "https://" + accountName + ".blob.core.windows.net/" + cfg.ContainerName + "/" + blobName
+		return url, nil // Already exists
 	}
 
 	if !bloberror.HasCode(err, bloberror.BlobNotFound) {
@@ -88,7 +98,9 @@ func UploadToAzureBlob(fileData []byte, blobName string, contentType string) (st
 	if err != nil {
 		return "", err
 	}
-	return "https://" + accountName + ".blob.core.windows.net/" + cfg.ContainerName + "/" + blobName, nil
+
+	url := "https://" + accountName + ".blob.core.windows.net/" + cfg.ContainerName + "/" + blobName
+	return url, nil
 }
 
 func ListBlobsWithPrefix(prefix string) ([]*container.BlobItem, error) {
