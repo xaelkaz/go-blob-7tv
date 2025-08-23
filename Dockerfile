@@ -1,6 +1,6 @@
 # Build arguments for flexibility
 ARG GO_VERSION=1.25
-ARG ALPINE_VERSION=3.19
+ARG ALPINE_VERSION=3.22
 ARG APP_VERSION=latest
 ARG BUILD_DATE
 ARG VCS_REF
@@ -17,6 +17,8 @@ WORKDIR /app
 # Create non-root user for building
 RUN addgroup -g 1001 -S buildgroup && \
     adduser -u 1001 -S builduser -G buildgroup
+
+RUN chown builduser:buildgroup /app
 
 # Copy go mod files first (better layer caching)
 COPY --chown=builduser:buildgroup go.mod go.sum ./
