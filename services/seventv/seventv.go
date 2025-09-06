@@ -105,12 +105,10 @@ func Fetch7TVEmotesAPI(query string, limit int, animatedOnly bool) []Emote {
       }
     }
     `
-    // Build filters: only include animated=true when explicitly requested.
-    // Sending animated=false filters out static-only results and does not match 7TV UI defaults.
-    filters := map[string]interface{}{}
-    if animatedOnly {
-        filters["animated"] = true
-    }
+    // Build filters: align with client boolean semantics.
+    // animated_only=true  => animated: true (solo animados)
+    // animated_only=false => animated: false (solo estáticos)
+    filters := map[string]interface{}{"animated": animatedOnly}
 
     variables := map[string]interface{}{
         "defaultSetId":    "",
