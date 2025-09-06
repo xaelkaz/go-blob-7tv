@@ -37,8 +37,17 @@ func GetCacheKey(query string, limit int, animatedOnly bool) string {
 	return fmt.Sprintf("emote_search:%s:%d:%t", query, limit, animatedOnly)
 }
 
-func GetTrendingCacheKey(period string, limit int, page int, animatedOnly bool) string {
-	return fmt.Sprintf("trending:%s:%d:%d:%t", period, limit, page, animatedOnly)
+func GetTrendingCacheKey(period string, limit int, page int, emoteType string) string {
+	return fmt.Sprintf("trending:%s:%d:%d:%s", period, limit, page, emoteType)
+}
+
+// GetTrendingCacheKeyLegacy mantiene compatibilidad con animated_only boolean
+func GetTrendingCacheKeyLegacy(period string, limit int, page int, animatedOnly bool) string {
+	emoteType := "all"
+	if animatedOnly {
+		emoteType = "animated"
+	}
+	return GetTrendingCacheKey(period, limit, page, emoteType)
 }
 
 func GetFromCache(key string) ([]byte, error) {

@@ -55,12 +55,43 @@ func trendingEmotes(c *gin.Context) {
 	animatedOnlyStr := c.Query("animated_only")
 	animatedOnly, _ := strconv.ParseBool(animatedOnlyStr)
 
+	// Nuevo parámetro emote_type para manejo más granular
+	emoteType := c.Query("emote_type")
+	if emoteType == "" && animatedOnlyStr != "" {
+		// Mantener compatibilidad con animated_only
+		if animatedOnly {
+			emoteType = "animated"
+		} else {
+			emoteType = "all"
+		}
+	}
+	if emoteType == "" {
+		emoteType = "all" // Por defecto todos los emotes
+	}
+
+	// Validar emote_type
+	var animationFilter seventv.AnimationFilter
+	switch emoteType {
+	case "animated":
+		animationFilter = seventv.AnimatedOnly
+	case "static":
+		animationFilter = seventv.StaticOnly
+	case "all":
+		animationFilter = seventv.AllEmotes
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid emote_type. Use 'all', 'animated', or 'static'",
+		})
+		return
+	}
+
 	fetchLimit := page * limit
 	if fetchLimit > 300 {
 		fetchLimit = 300
 	}
 
-	cacheKey := cache.GetTrendingCacheKey(string(period), limit, page, animatedOnly)
+	cacheKey := cache.GetTrendingCacheKey(string(period), limit, page, emoteType)
 	cached, err := cache.GetFromCache(cacheKey)
 	if err == nil && cached != nil {
 		var resp models.SearchResponse
@@ -72,7 +103,7 @@ func trendingEmotes(c *gin.Context) {
 		}
 	}
 
-	emotes := seventv.Fetch7TVTrendingEmotes(string(period), fetchLimit, animatedOnly)
+	emotes := seventv.Fetch7TVTrendingEmotesAdvanced(string(period), fetchLimit, animationFilter)
 	if len(emotes) == 0 {
 		resp := models.SearchResponse{
 			Success:        true,

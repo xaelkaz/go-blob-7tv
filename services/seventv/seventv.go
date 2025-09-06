@@ -10,8 +10,6 @@ import (
 	"net/http"
 	"regexp"
 	"sort"
-	"strconv"
-	"strings"
 
 	"gokeki/models"
 	"gokeki/services/storage"
@@ -59,33 +57,6 @@ type searchResponse struct {
 				TotalCount int     `json:"totalCount"`
 				PageCount  int     `json:"pageCount"`
 			} `json:"search"`
-		} `json:"emotes"`
-	} `json:"data"`
-}
-
-type TrendingFile struct {
-	Name   string `json:"name"`
-	Format string `json:"format"`
-	Width  int    `json:"width"`
-	Height int    `json:"height"`
-}
-
-type TrendingHost struct {
-	URL   string         `json:"url"`
-	Files []TrendingFile `json:"files"`
-}
-
-type TrendingItem struct {
-	ID       string       `json:"id"`
-	Name     string       `json:"name"`
-	Animated bool         `json:"animated"`
-	Host     TrendingHost `json:"host"`
-}
-
-type trendingResponse struct {
-	Data struct {
-		Emotes struct {
-			Items []TrendingItem `json:"items"`
 		} `json:"emotes"`
 	} `json:"data"`
 }
@@ -184,36 +155,209 @@ func Fetch7TVEmotesAPI(query string, limit int, animatedOnly bool) []Emote {
 	return sr.Data.Emotes.Search.Items
 }
 
+// AnimationFilter represents the type of emotes to fetch based on animation
+type AnimationFilter int
+
+const (
+	AllEmotes    AnimationFilter = iota // Todos los emotes
+	AnimatedOnly                        // Solo emotes animados
+	StaticOnly                          // Solo emotes estáticos
+)
+
 func Fetch7TVTrendingEmotes(period string, limit int, animatedOnly bool) []Emote {
+	// Convert boolean to AnimationFilter for backward compatibility
+	var animationFilter AnimationFilter
+	if animatedOnly {
+		animationFilter = AnimatedOnly
+	} else {
+		animationFilter = AllEmotes
+	}
+
+	// Use the advanced function internally
+	return Fetch7TVTrendingEmotesAdvanced(period, limit, animationFilter)
+} // Fetch7TVTrendingEmotesAdvanced allows more granular control over animation filtering
+func Fetch7TVTrendingEmotesAdvanced(period string, limit int, animationFilter AnimationFilter) []Emote {
 	url := "https://api.7tv.app/v4/gql"
 	gql := `
-    query GetTrendingEmotes($limit: Int, $filter: EmoteSearchFilter, $period: String!) {
-      emotes(query: "", limit: $limit, filter: $filter, sort: { value: $period, order: DESCENDING }) {
-        items {
-          id
-          name
-          animated
-          host {
-            url
-            files {
-              name
-              format
-              width
-              height
-            }
-          }
-        }
-      }
-    }
-    `
+	query EmoteSearch($query: String, $tags: [String!]!, $sortBy: SortBy!, $filters: Filters, $page: Int, $perPage: Int!, $isDefaultSetSet: Boolean!, $defaultSetId: Id!) {
+	  emotes {
+	    search(
+	      query: $query
+	      tags: {tags: $tags, match: ANY}
+	      sort: {sortBy: $sortBy, order: DESCENDING}
+	      filters: $filters
+	      page: $page
+	      perPage: $perPage
+	    ) {
+	      items {
+	        id
+	        defaultName
+	        owner {
+	          mainConnection {
+	            platformDisplayName
+	            __typename
+	          }
+	          style {
+	            activePaint {
+	              id
+	              name
+	              data {
+	                layers {
+	                  id
+	                  ty {
+	                    __typename
+	                    ... on PaintLayerTypeSingleColor {
+	                      color {
+	                        hex
+	                        __typename
+	                      }
+	                      __typename
+	                    }
+	                    ... on PaintLayerTypeLinearGradient {
+	                      angle
+	                      repeating
+	                      stops {
+	                        at
+	                        color {
+	                          hex
+	                          __typename
+	                        }
+	                        __typename
+	                      }
+	                      __typename
+	                    }
+	                    ... on PaintLayerTypeRadialGradient {
+	                      repeating
+	                      stops {
+	                        at
+	                        color {
+	                          hex
+	                          __typename
+	                        }
+	                        __typename
+	                      }
+	                      shape
+	                      __typename
+	                    }
+	                    ... on PaintLayerTypeImage {
+	                      images {
+	                        url
+	                        mime
+	                        size
+	                        scale
+	                        width
+	                        height
+	                        frameCount
+	                        __typename
+	                      }
+	                      __typename
+	                    }
+	                  }
+	                  opacity
+	                  __typename
+	                }
+	                shadows {
+	                  color {
+	                    hex
+	                    __typename
+	                  }
+	                  offsetX
+	                  offsetY
+	                  blur
+	                  __typename
+	                }
+	                __typename
+	              }
+	              __typename
+	            }
+	            __typename
+	          }
+	          highestRoleColor {
+	            hex
+	            __typename
+	          }
+	          __typename
+	        }
+	        deleted
+	        flags {
+	          defaultZeroWidth
+	          private
+	          publicListed
+	          __typename
+	        }
+	        imagesPending
+	        images {
+	          url
+	          mime
+	          size
+	          scale
+	          width
+	          frameCount
+	          __typename
+	        }
+	        ranking(ranking: TRENDING_WEEKLY)
+	        inEmoteSets(emoteSetIds: [$defaultSetId]) @include(if: $isDefaultSetSet) {
+	          emoteSetId
+	          emote {
+	            id
+	            alias
+	            __typename
+	          }
+	          __typename
+	        }
+	        __typename
+	      }
+	      totalCount
+	      pageCount
+	      __typename
+	    }
+	    __typename
+	  }
+	}
+	`
+
+	// Convert period to sortBy format
+	var sortBy string
+	switch period {
+	case "trending_daily":
+		sortBy = "TRENDING_DAILY"
+	case "trending_weekly":
+		sortBy = "TRENDING_WEEKLY"
+	case "trending_monthly":
+		sortBy = "TRENDING_MONTHLY"
+	default:
+		sortBy = "TRENDING_MONTHLY"
+	}
+
+	// Build filters object based on animation filter
+	var filters map[string]interface{}
+	switch animationFilter {
+	case AnimatedOnly:
+		filters = map[string]interface{}{
+			"animated": true,
+		}
+	case StaticOnly:
+		filters = map[string]interface{}{
+			"animated": false,
+		}
+	default: // AllEmotes
+		filters = map[string]interface{}{}
+	}
+
 	variables := map[string]interface{}{
-		"limit":  limit,
-		"filter": map[string]interface{}{"animated": animatedOnly},
-		"period": period,
+		"defaultSetId":    "",
+		"filters":         filters,
+		"isDefaultSetSet": false,
+		"page":            1,
+		"perPage":         limit,
+		"query":           nil,
+		"sortBy":          sortBy,
+		"tags":            []string{},
 	}
 	payload := map[string]interface{}{
-		"query":     gql,
-		"variables": variables,
+		"operationName": "EmoteSearch",
+		"query":         gql,
+		"variables":     variables,
 	}
 
 	body, err := json.Marshal(payload)
@@ -242,46 +386,13 @@ func Fetch7TVTrendingEmotes(period string, limit int, animatedOnly bool) []Emote
 		return nil
 	}
 
-	var tr trendingResponse
-	if err := json.NewDecoder(resp.Body).Decode(&tr); err != nil {
+	var sr searchResponse
+	if err := json.NewDecoder(resp.Body).Decode(&sr); err != nil {
 		log.Printf("Error decoding response: %v", err)
 		return nil
 	}
 
-	emotes := make([]Emote, len(tr.Data.Emotes.Items))
-	for i, item := range tr.Data.Emotes.Items {
-		emotes[i] = Emote{
-			ID:          item.ID,
-			DefaultName: item.Name,
-			Images:      buildImages(item.Host, item.Animated),
-			Owner:       Owner{},
-			Ranking:     0,
-			InEmoteSets: nil,
-		}
-	}
-	return emotes
-}
-
-func buildImages(host TrendingHost, animated bool) []Image {
-	images := make([]Image, len(host.Files))
-	for i, f := range host.Files {
-		scaleStr := strings.TrimSuffix(f.Name, "x."+strings.ToLower(f.Format))
-		scale, _ := strconv.Atoi(scaleStr)
-		mime := "image/" + strings.ToLower(f.Format)
-		url := "https:" + host.URL + "/" + f.Name
-		frameCount := 1
-		if animated {
-			frameCount = 2 // Arbitrary value >1 to indicate animated
-		}
-		images[i] = Image{
-			URL:        url,
-			Mime:       mime,
-			Scale:      scale,
-			Width:      f.Width,
-			FrameCount: frameCount,
-		}
-	}
-	return images
+	return sr.Data.Emotes.Search.Items
 }
 
 func selectBestImage(images []Image) *Image {

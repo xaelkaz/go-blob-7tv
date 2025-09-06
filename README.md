@@ -6,6 +6,7 @@ A REST API developed in Go for searching, managing and storing 7TV emotes with R
 
 - **Emote search**: Search emotes on 7TV API with customizable filters
 - **Trending emotes**: Get the most popular emotes by period (daily, weekly, monthly, all-time)
+- **Advanced animation filtering**: Filter emotes by animation type (all, animated only, static only)
 - **Cache system**: Redis for fast responses and reduced load on external APIs
 - **Cloud storage**: Upload and manage emotes on Azure Blob Storage
 - **Rate limiting**: Protection against abuse with limits per endpoint
@@ -88,6 +89,9 @@ REDIS_PASSWORD=
 CACHE_TTL=3600          # 1 hour for searches
 TRENDING_CACHE_TTL=900  # 15 minutes for trending
 
+# The cache system now supports animation-based filtering
+# Each emote_type (all/animated/static) has separate cache entries
+
 # Azure Storage (required for full functionality)
 AZURE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=youraccount;AccountKey=yourkey;EndpointSuffix=core.windows.net
 CONTAINER_NAME=emotes
@@ -126,6 +130,81 @@ make fmt           # Format code
 make vet           # Verify code with go vet
 ```
 
+## 🎨 Animation Filtering
+
+The API provides advanced animation filtering capabilities for trending emotes, allowing you to fetch specific types of emotes based on their animation properties.
+
+### Filter Types
+
+| Filter Type | Description | API Parameter |
+|-------------|-------------|---------------|
+| **All Emotes** | Returns both animated and static emotes | `emote_type=all` |
+| **Animated Only** | Returns only animated emotes (GIF, WebP with animation) | `emote_type=animated` |
+| **Static Only** | Returns only static emotes (PNG, static WebP) | `emote_type=static` |
+
+### Usage Examples
+
+#### Using the new `emote_type` parameter (recommended)
+
+```bash
+# Get all types of emotes (default)
+curl "http://localhost:8000/api/trending/emotes?period=trending_weekly&emote_type=all"
+
+# Get only animated emotes
+curl "http://localhost:8000/api/trending/emotes?period=trending_daily&emote_type=animated&limit=30"
+
+# Get only static emotes
+curl "http://localhost:8000/api/trending/emotes?period=trending_monthly&emote_type=static&limit=50"
+```
+
+#### Using legacy `animated_only` parameter (backward compatibility)
+
+```bash
+# Get only animated emotes (legacy)
+curl "http://localhost:8000/api/trending/emotes?animated_only=true"
+
+# Get all emotes (legacy)
+curl "http://localhost:8000/api/trending/emotes?animated_only=false"
+```
+
+### Parameter Priority
+
+When both `emote_type` and `animated_only` are specified, `emote_type` takes precedence:
+
+```bash
+# This will return only static emotes (emote_type takes precedence)
+curl "http://localhost:8000/api/trending/emotes?emote_type=static&animated_only=true"
+```
+
+### Implementation Details
+
+The animation filtering is implemented using a strategy pattern with three filter types:
+
+```go
+type AnimationFilter int
+
+const (
+    AllEmotes    AnimationFilter = iota // All emotes
+    AnimatedOnly                        // Only animated emotes  
+    StaticOnly                          // Only static emotes
+)
+```
+
+The API automatically detects animation properties by analyzing:
+- **Frame count**: Emotes with `frameCount > 1` are considered animated
+- **MIME types**: WebP, GIF formats with animation data
+- **File properties**: Animation flags and metadata
+
+### Cache Optimization
+
+Each animation filter type has its own cache layer to optimize performance:
+
+- `trending:weekly:20:1:all` - Cache key for all emotes
+- `trending:weekly:20:1:animated` - Cache key for animated emotes only  
+- `trending:weekly:20:1:static` - Cache key for static emotes only
+
+This ensures that different filter requests don't invalidate each other's cache.
+
 ## 📖 API Endpoints
 
 The API will be available at `http://localhost:8000`
@@ -139,10 +218,22 @@ The API will be available at `http://localhost:8000`
 
 ### Search and trending
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/search-emotes` | POST | Search emotes by query |
-| `/api/trending/emotes` | GET | Get trending emotes |
+| Endpoint | Method | Description | Parameters |
+|----------|--------|-------------|------------|
+| `/api/search-emotes` | POST | Search emotes by query | `query`, `limit`, `animated_only` |
+| `/api/trending/emotes` | GET | Get trending emotes | `period`, `limit`, `page`, `emote_type`, `animated_only` |
+
+#### Trending emotes parameters
+
+| Parameter | Type | Description | Values | Default |
+|-----------|------|-------------|--------|---------|
+| `period` | string | Trending period | `trending_daily`, `trending_weekly`, `trending_monthly` | `trending_weekly` |
+| `limit` | int | Results per page | 1-100 | 20 |
+| `page` | int | Page number | >= 1 | 1 |
+| `emote_type` | string | Animation filter | `all`, `animated`, `static` | `all` |
+| `animated_only` | bool | Legacy animated filter | `true`, `false` | `false` |
+
+**Note**: `emote_type` parameter provides more granular control than `animated_only`. When both are specified, `emote_type` takes precedence.
 
 ### Storage
 
@@ -179,8 +270,20 @@ curl "http://localhost:8000/api/trending/emotes?limit=20"
 # Monthly trending
 curl "http://localhost:8000/api/trending/emotes?period=trending_monthly&limit=20"
 
-# Animated emotes only
+# Daily trending with only animated emotes
+curl "http://localhost:8000/api/trending/emotes?period=trending_daily&emote_type=animated"
+
+# Weekly trending with only static emotes
+curl "http://localhost:8000/api/trending/emotes?period=trending_weekly&emote_type=static"
+
+# All emotes (default behavior)
+curl "http://localhost:8000/api/trending/emotes?period=trending_monthly&emote_type=all"
+
+# Backward compatibility - animated emotes only (legacy parameter)
 curl "http://localhost:8000/api/trending/emotes?animated_only=true"
+
+# Combined parameters with pagination
+curl "http://localhost:8000/api/trending/emotes?period=trending_daily&emote_type=animated&limit=50&page=2"
 ```
 
 #### System status
@@ -420,18 +523,21 @@ graph LR
 - **Repository Pattern**: Abstraction of storage and cache operations
 - **Middleware Pattern**: Cross-cutting concerns like rate limiting and metrics
 - **Service Pattern**: Specialized services for each responsibility
+- **Strategy Pattern**: Animation filtering with enum-based strategies
 
 #### **Scalability Principles**
 - **Stateless Design**: Enables horizontal scaling
 - **Distributed Cache**: Redis for high performance
 - **Decoupling**: Independent and interchangeable services
 - **External Configuration**: Environment variables for flexibility
+- **Modular Services**: Easy to extend and maintain
 
 #### **Resilience Features**
 - **Health Checks**: Continuous system status monitoring
 - **Rate Limiting**: Protection against overload
 - **Graceful Error Handling**: Elegant failure management
 - **Circuit Breaker Pattern**: External service protection (implicit)
+- **Backward Compatibility**: Legacy parameter support
 
 ## 🔧 Development
 
@@ -525,6 +631,19 @@ go mod tidy
 # The application will work without Azure Storage
 # Only storage/upload functions will be disabled
 # Check connection string in environment variables
+```
+
+### Animation filtering issues
+```bash
+# Invalid emote_type parameter
+curl "http://localhost:8000/api/trending/emotes?emote_type=invalid"
+# Returns: 400 Bad Request with error message
+
+# Check available filter types: all, animated, static
+curl "http://localhost:8000/api/trending/emotes?emote_type=animated"
+
+# Use legacy parameter if needed
+curl "http://localhost:8000/api/trending/emotes?animated_only=true"
 ```
 
 ### Port conflicts
