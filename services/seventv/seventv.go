@@ -2,14 +2,13 @@
 package seventv
 
 import (
-	"bytes"
-	"context"
-	"encoding/json"
-	"io"
-	"log"
-	"net/http"
-	"regexp"
-	"sort"
+    "bytes"
+    "context"
+    "encoding/json"
+    "io"
+    "log"
+    "net/http"
+    "sort"
 
 	"gokeki/models"
 	"gokeki/services/storage"
@@ -438,13 +437,13 @@ func selectBestImage(images []Image) *Image {
 	return &candidates[0]
 }
 
-var safeNameRe = regexp.MustCompile(`[^a-zA-Z0-9\._\- ]`)
+// name sanitizer removed; filenames now use emote ID to ensure uniqueness
 
 func processEmote(e Emote, folder string) *models.EmoteResponse {
-	bestImage := selectBestImage(e.Images)
-	if bestImage == nil {
-		return nil
-	}
+    bestImage := selectBestImage(e.Images)
+    if bestImage == nil {
+        return nil
+    }
 
 	resp, err := http.Get(bestImage.URL)
 	if err != nil || resp.StatusCode != http.StatusOK {
@@ -468,9 +467,14 @@ func processEmote(e Emote, folder string) *models.EmoteResponse {
 		extension = ".avif"
 	}
 
-	safeName := safeNameRe.ReplaceAllString(e.DefaultName, "_")
-	fileName := safeName + extension
-	blobName := folder + "/" + fileName
+    // Use stable unique naming to avoid collisions between emotes sharing names
+    // and between static/animated variants of the same emote.
+    variant := "static"
+    if bestImage.FrameCount > 1 {
+        variant = "anim"
+    }
+    fileName := e.ID + "_" + variant + extension
+    blobName := folder + "/" + fileName
 
 	url, err := storage.UploadToAzureBlob(data, blobName, bestImage.Mime)
 	if err != nil || url == "" {
