@@ -62,8 +62,8 @@ type searchResponse struct {
 }
 
 func Fetch7TVEmotesAPI(query string, limit int, animatedOnly bool) []Emote {
-	url := "https://api.7tv.app/v4/gql"
-	gql := `
+    url := "https://api.7tv.app/v4/gql"
+    gql := `
     query EmoteSearch($query: String, $tags: [String!]!, $sortBy: SortBy!, $filters: Filters, $page: Int, $perPage: Int!, $isDefaultSetSet: Boolean!, $defaultSetId: Id!) {
       emotes {
         search(
@@ -105,20 +105,28 @@ func Fetch7TVEmotesAPI(query string, limit int, animatedOnly bool) []Emote {
       }
     }
     `
-	variables := map[string]interface{}{
-		"defaultSetId":    "",
-		"filters":         map[string]bool{"animated": animatedOnly},
-		"isDefaultSetSet": false,
-		"page":            1,
-		"perPage":         limit,
-		"query":           query,
-		"sortBy":          "TOP_ALL_TIME",
-		"tags":            []string{},
-	}
-	payload := map[string]interface{}{
-		"query":     gql,
-		"variables": variables,
-	}
+    // Build filters: only include animated=true when explicitly requested.
+    // Sending animated=false filters out static-only results and does not match 7TV UI defaults.
+    filters := map[string]interface{}{}
+    if animatedOnly {
+        filters["animated"] = true
+    }
+
+    variables := map[string]interface{}{
+        "defaultSetId":    "",
+        "filters":         filters,
+        "isDefaultSetSet": false,
+        "page":            1,
+        "perPage":         limit,
+        "query":           query,
+        "sortBy":          "TOP_ALL_TIME",
+        "tags":            []string{},
+    }
+    payload := map[string]interface{}{
+        "operationName": "EmoteSearch",
+        "query":         gql,
+        "variables":     variables,
+    }
 
 	body, err := json.Marshal(payload)
 	if err != nil {
