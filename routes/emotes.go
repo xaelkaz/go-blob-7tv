@@ -28,19 +28,23 @@ func getEmoteLimiter() gin.HandlerFunc {
 }
 
 func searchEmotes(c *gin.Context) {
-	start := time.Now()
-	var req models.SearchRequest
-	if err := c.BindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	if req.Query == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"detail": "Query parameter is required"})
-		return
-	}
-	if req.Limit == 0 || req.Limit > 200 {
-		req.Limit = 100
-	}
+    start := time.Now()
+    var req models.SearchRequest
+    if err := c.BindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
+    // Support both `limit` (internal) and `perPage` (7TV naming)
+    if req.Limit == 0 && req.PerPage > 0 {
+        req.Limit = req.PerPage
+    }
+    if req.Query == "" {
+        c.JSON(http.StatusBadRequest, gin.H{"detail": "Query parameter is required"})
+        return
+    }
+    if req.Limit == 0 || req.Limit > 200 {
+        req.Limit = 100
+    }
 
 	cacheKey := cache.GetCacheKey(req.Query, req.Limit, req.AnimatedOnly)
 	cached, err := cache.GetFromCache(cacheKey)

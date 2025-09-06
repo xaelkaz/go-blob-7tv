@@ -26,9 +26,10 @@ type SearchResponse struct {
 }
 
 type SearchRequest struct {
-	Query        string `json:"query"`
-	Limit        int    `json:"limit,omitempty"`
-	AnimatedOnly bool   `json:"animated_only,omitempty"`
+    Query        string `json:"query"`
+    Limit        int    `json:"limit,omitempty"`
+    PerPage      int    `json:"perPage,omitempty"`
+    AnimatedOnly bool   `json:"animated_only,omitempty"`
 }
 
 type TrendingPeriod string
